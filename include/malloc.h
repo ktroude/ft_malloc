@@ -39,7 +39,6 @@ void    free(void *ptr);
 void    *realloc(void *ptr, size_t size);
 void    show_alloc_mem(void);
 
-/* utils */
 size_t  align_size(size_t size);
 void    *alloc_in_zone(t_zone **zone_list, size_t size, size_t zone_size);
 void    free_block(void *ptr);
