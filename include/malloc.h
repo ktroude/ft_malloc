@@ -1,0 +1,47 @@
+#ifndef MALLOC_H
+#define MALLOC_H
+
+#include <stddef.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/resource.h>
+#include <pthread.h>
+
+#define TINY_THRESHOLD    128
+#define SMALL_THRESHOLD   2048
+
+#define TINY_ZONE_FACTOR  32
+#define SMALL_ZONE_FACTOR 128
+
+typedef struct s_block {
+    size_t size;
+    int is_free;
+    struct s_block *next;
+} t_block;
+
+typedef struct s_zone {
+    size_t size;
+    struct s_zone *next;
+    t_block *blocks;
+} t_zone;
+
+typedef struct s_malloc {
+    t_zone *tiny;
+    t_zone *small;
+    t_zone *large;
+    pthread_mutex_t lock;
+} t_malloc;
+
+extern t_malloc g_malloc;
+
+void    *malloc(size_t size);
+void    free(void *ptr);
+void    *realloc(void *ptr, size_t size);
+void    show_alloc_mem(void);
+
+/* utils */
+size_t  align_size(size_t size);
+void    *alloc_in_zone(t_zone **zone_list, size_t size, size_t zone_size);
+void    free_block(void *ptr);
+
+#endif
