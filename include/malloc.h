@@ -7,11 +7,13 @@
 #include <sys/resource.h>
 #include <pthread.h>
 
-#define TINY_THRESHOLD    128
-#define SMALL_THRESHOLD   2048
+#define TINY_THRESHOLD 128
+#define SMALL_THRESHOLD 2048
 
-#define TINY_ZONE_FACTOR  32
-#define SMALL_ZONE_FACTOR 128
+#define TINY_ZONE_SIZE  (page_size() * 32)
+#define SMALL_ZONE_SIZE (page_size() * 128)
+
+#define ALIGNMENT 16
 
 typedef struct s_block {
     size_t size;
