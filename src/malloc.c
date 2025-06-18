@@ -60,7 +60,7 @@ void *malloc(size_t size) {
     if (size == 0) {
         return NULL;
     }
-
+    
     pthread_mutex_lock(&g_malloc.lock);
 
     size_t aligned = align_size(size);
