@@ -1,4 +1,16 @@
 #include "malloc.h"
+#include <stdarg.h>
+
+
+static int ft_putchar(int c)
+{
+	int		j;
+
+	j = 0;
+	j += write(1, &c, 1);
+	return (j);
+}
+
 
 static int ft_putnbr(int n)
 {

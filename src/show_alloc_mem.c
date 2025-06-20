@@ -12,7 +12,7 @@
 static void print_ligne(t_block *block, int bytes) {
     void *start = (void *)(block + 1);
     void *end = (void *)((char *)start + bytes);
-    printf("%p - %p : %d bytes\n", start, end, bytes);
+    ft_printf("%p - %p : %d bytes\n", start, end, bytes);
 }
 
 /**
@@ -25,7 +25,7 @@ static void print_ligne(t_block *block, int bytes) {
  * @param zone Pointer to the start of a zone list (TINY, SMALL, or LARGE).
  * @return The total size (in bytes) of all allocated blocks in the list.
  */
-static int get_allocation_loop(zone_t *zone) {
+static int get_allocation_loop(t_zone *zone) {
     int ret = 0;
 
     while(zone) {
@@ -65,14 +65,14 @@ void show_alloc_mem() {
 
     int total = 0;
 
-    printf("TINY : %p\n", (void *)g_malloc.tiny);
+    ft_printf("TINY : %p\n", (void *)g_malloc.tiny);
     total += get_allocation_loop(g_malloc.tiny);
 
-    printf("SMALL : %p\n", (void *)g_malloc.small);
+    ft_printf("SMALL : %p\n", (void *)g_malloc.small);
     total += get_allocation_loop(g_malloc.small);
 
-    printf("LARGE : %p\n", (void *)g_malloc.large);
+    ft_printf("LARGE : %p\n", (void *)g_malloc.large);
     total += get_allocation_loop(g_malloc.large);
 
-    printf("Total : %d bytes\n", total);
+    ft_printf("Total : %d bytes\n", total);
 }

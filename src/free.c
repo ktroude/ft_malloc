@@ -1,64 +1,6 @@
 #include "malloc.h"
 
 /**
- * @brief Searches for a given block in a list of zones (TINY or SMALL).
- *
- * Iterates over all blocks in all zones of the given list and returns the matching
- * block pointer if found.
- *
- * @param zone Pointer to the head of a zone list.
- * @param block Pointer to the block being searched.
- * @return Pointer to the matching block if found, NULL otherwise.
- */
-static t_block *find_block_in_zone(t_zone *zone, t_block *block) {
-    if (zone == NULL) {
-        return NULL;
-    }
-
-    t_zone *curr_zone = zone;
-
-    while (curr_zone) {
-        t_block *curr_block = curr_zone->blocks;
-        while (curr_block) {
-            if (curr_block == block) {
-                return block;
-            }
-            curr_block = curr_block->next;
-        }
-        curr_zone = curr_zone->next;
-    }
-
-    return NULL;
-}
-
-/**
- * @brief Finds the zone in the LARGE list that contains a given block.
- *
- * Because each LARGE zone contains only one block, the match is done directly
- * between the zone's `blocks` field and the given block pointer.
- *
- * @param zone Head of the LARGE zones list.
- * @param block Pointer to the block to find.
- * @return Pointer to the zone containing the block, or NULL if not found.
- */
-static t_zone *find_zone_in_large_list(t_zone *zone, t_block *block) {
-    if (zone == NULL) {
-        return NULL;
-    }
-
-    t_zone *curr_zone = zone;
-
-    while (curr_zone) {
-        if (curr_zone->blocks == block) {
-            return curr_zone;
-        }
-        curr_zone = curr_zone->next;
-    }
-
-    return NULL;
-}
-
-/**
  * @brief Removes a zone from a linked list of zones.
  *
  * This function updates the zone list to remove the specified zone.

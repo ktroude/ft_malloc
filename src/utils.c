@@ -10,7 +10,3 @@ size_t page_size(void) {
         size = (size_t)sysconf(_SC_PAGESIZE);
     return size;
 }
-
-void    free_block(void *ptr) {
-
-}
