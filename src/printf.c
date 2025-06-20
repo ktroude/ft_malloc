@@ -1,11 +1,4 @@
-static int ft_putchar(int c)
-{
-	int		j;
-
-	j = 0;
-	j += write(1, &c, 1);
-	return (j);
-}
+#include "malloc.h"
 
 static int ft_putnbr(int n)
 {
@@ -33,24 +26,6 @@ static int ft_putnbr(int n)
 	return (j);
 }
 
-static int ft_putstr(char *str)
-{
-	int	i;
-	int	j;
-
-	j = 0;
-	i = 0;
-	if (!str)
-		return (write(1, "(null)", 6));
-	while (str[i])
-	{
-		write(1, &str[i], 1);
-		i++;
-		j++;
-	}
-	return (j);
-}
-
 static int ft_putnbr_base_p(unsigned long int n)
 {
 	int		j;
@@ -70,10 +45,6 @@ static int ft_putnbr_base_p(unsigned long int n)
 
 static int check_printf(int i, const char *str, va_list args)
 {
-	if (str[i] == 'c')
-		return (ft_putchar(va_arg(args, int)));
-	if (str[i] == 's')
-		return (ft_putstr(va_arg(args, char *)));
 	if (str[i] == 'p')
 	{
 		write (1, "0x", 2);
@@ -81,12 +52,6 @@ static int check_printf(int i, const char *str, va_list args)
 	}
 	if (str[i] == 'd' || str[i] == 'i')
 		return (ft_putnbr(va_arg(args, int)));
-	if (str[i] == 'x')
-		return (ft_putnbr_base(va_arg(args, unsigned int), 0));
-	if (str[i] == 'X')
-		return (ft_putnbr_base(va_arg(args, unsigned int), 1));
-	if (str[i] == '%')
-		return (ft_putchar('%'));
 	return (0);
 }
 
