@@ -37,34 +37,34 @@ static void reorganize_linked_list(t_zone **start, t_zone *to_delete) {
  * If NULL, the function does nothing.
  */
 void free(void *ptr) {
-
     if (ptr == NULL) {
-        return ;
+        return;
     }
+
+    pthread_mutex_lock(&g_malloc.lock);
 
     t_block *block = ((t_block *)ptr) - 1;
 
-    t_zone *tiny = g_malloc.tiny;
-    t_zone *small = g_malloc.small;
-    t_zone *large = g_malloc.large;
-
-    t_block *block_found;
-
-    block_found = find_block_in_zone(tiny, block);
-    if (block_found) {
-        block_found->is_free = 1;
+    // Vérifier dans tiny
+    if (find_block_in_zone(g_malloc.tiny, block)) {
+        block->is_free = 1;
+        pthread_mutex_unlock(&g_malloc.lock);
         return;
     }
 
-    block_found = find_block_in_zone(small, block);
-    if (block_found) {
-        block_found->is_free = 1;
+    // Vérifier dans small
+    if (find_block_in_zone(g_malloc.small, block)) {
+        block->is_free = 1;
+        pthread_mutex_unlock(&g_malloc.lock);
         return;
     }
 
-    t_zone *zone_found = find_zone_in_large_list(large, block);
+    // Vérifier dans large
+    t_zone *zone_found = find_zone_in_large_list(g_malloc.large, block);
     if (zone_found) {
         reorganize_linked_list(&g_malloc.large, zone_found);
         munmap(zone_found, zone_found->size);
     }
+
+    pthread_mutex_unlock(&g_malloc.lock);
 }

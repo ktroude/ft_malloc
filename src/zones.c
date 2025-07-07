@@ -1,84 +1,145 @@
 #include "malloc.h"
 
-
 /**
- * @brief Creates a new memory zone and initializes a block within it.
+ * @brief Searches for a free block in existing zones.
  *
- * Uses mmap to allocate a new memory zone of the specified size, then
- * initializes a single memory block inside that zone to fulfill the requested size.
- * The new zone is inserted at the head of the zone list.
+ * This function traverses the linked list of zones and their blocks to find
+ * a free block that can accommodate the requested size. If a suitable block
+ * is found, it is marked as used and potentially split if it's larger than needed.
+ * 
+ * The function also supports lazy allocation by
+ * creating new blocks on-demand within existing zones if space permits.
  *
- * @param zone_list Pointer to the zone list to which the new zone will be added.
- * @param size The aligned size to allocate inside the new zone.
- * @param zone_size The total size to allocate for the new zone.
+ * @param zone Pointer to the first zone in the linked list.
+ * @param size The size of memory requested (already aligned).
  *
- * @return Pointer to the newly allocated memory block usable by the user,
- *         or NULL if mmap fails.
- */
-static void *create_zone_with_block(t_zone **zone_list, size_t size, size_t zone_size) {
-    t_zone *zone = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-
-    if (zone == MAP_FAILED) {
-        return NULL;
-    }
-
-    memset(zone, 0, zone_size);
-
-    t_block *block = (t_block *)(zone + 1);
-    block->size = size;
-    block->is_free = 0;
-    zone->blocks = block;
-
-    zone->next = *zone_list;
-    *zone_list = zone;
-
-    return (void *)(block + 1);
-}
-
-/**
- * @brief Searches for a free memory block in the provided zones.
- *
- * Iterates over all blocks in the zones, looking for a block that is free
- * and large enough to fulfill the requested size. If such a block is found,
- * it is marked as used and its memory address is returned.
- *
- * @param zone The head of the linked list of memory zones to search.
- * @param size The aligned size of memory to allocate.
- *
- * @return Pointer to the usable memory area if a suitable block is found, or NULL otherwise.
+ * @return Pointer to the usable memory (after the block header), or NULL if
+ *         no suitable free block is found.
  */
 static void *find_free_block(t_zone *zone, size_t size) {
     while (zone) {
-            t_block *block = zone->blocks;
+        t_block *block = zone->blocks;
+        t_block *last_block = NULL;
+        
         while (block) {
             if (block->is_free && block->size >= size) {
                 block->is_free = 0;
-                return (void *)(block +1);
+                
+                if (block->size == size) {
+                    return (void *)(block + 1);
+                }
+                
+                if (block->size > size + sizeof(t_block) + ALIGNMENT) {
+                    t_block *new_block = (t_block *)((char *)block + sizeof(t_block) + size);
+                    new_block->size = block->size - size - sizeof(t_block);
+                    new_block->is_free = 1;
+                    new_block->next = block->next;
+                    
+                    block->size = size;
+                    block->next = new_block;
+                }
+                
+                return (void *)(block + 1);
             }
+            last_block = block;
             block = block->next;
         }
+        
+        if (last_block != NULL) {
+            char *next_pos = (char *)last_block + sizeof(t_block) + last_block->size;
+            char *zone_end = (char *)zone + zone->size;
+            
+            if (next_pos + sizeof(t_block) + size <= zone_end) {
+                t_block *new_block = (t_block *)next_pos;
+                new_block->size = size;
+                new_block->is_free = 0;
+                new_block->next = NULL;
+                
+                last_block->next = new_block;
+                
+                return (void *)(new_block + 1);
+            }
+        }
+        
         zone = zone->next;
     }
     return NULL;
 }
 
 /**
- * @brief Allocates a memory block from an existing zone or creates a new one if needed.
+ * @brief Creates a new zone and allocates the first block within it.
  *
- * This function attempts to find a free memory block of at least the requested size
- * in the given zone list. If none is found, it maps a new zone using mmap and
- * returns a pointer to a newly created block.
+ * This function uses mmap to create a new memory zone of the specified size.
+ * For LARGE allocations (> SMALL_THRESHOLD), the zone contains a single block.
+ * For TINY/SMALL allocations, the zone is created with lazy allocation strategy:
+ * only the first block is initialized, and subsequent blocks are created on-demand.
  *
- * @param zone_list Pointer to the linked list of zones (TINY, SMALL, or LARGE).
- * @param size The aligned size to allocate (not including metadata).
- * @param zone_size The total size of the memory zone to allocate with mmap if needed.
+ * The function first attempts to find space in existing zones before creating a new one.
  *
- * @return Pointer to the allocated memory area usable by the user (i.e. after block metadata),
- *         or NULL on failure.
+ * @param zone_list Pointer to the head of the zone list (passed by reference).
+ * @param size The size of the block to allocate (already aligned).
+ * @param zone_size The total size of the zone to create.
+ *
+ * @return Pointer to the usable memory of the allocated block, or NULL on failure.
+ */
+static void *create_zone_with_block(t_zone **zone_list, size_t size, size_t zone_size) {
+    if (*zone_list != NULL) {
+        void *ret = find_free_block(*zone_list, size);
+        if (ret != NULL) {
+            return ret;
+        }
+    }
+
+    t_zone *zone = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+    if (zone == MAP_FAILED) {
+        return NULL;
+    }
+
+    zone->size = zone_size;
+    zone->next = NULL;
+
+    if (size > SMALL_THRESHOLD) {
+        t_block *block = (t_block *)(zone + 1);
+        block->size = size;
+        block->is_free = 0;
+        block->next = NULL;
+        
+        zone->blocks = block;
+        zone->next = *zone_list;
+        *zone_list = zone;
+        
+        return (void *)(block + 1);
+    }
+
+    t_block *first_block = (t_block *)(zone + 1);
+    first_block->size = size;
+    first_block->is_free = 0;
+    first_block->next = NULL;
+    
+    zone->blocks = first_block;
+    
+    zone->next = *zone_list;
+    *zone_list = zone;
+    
+    return (void *)(first_block + 1);
+}
+
+/**
+ * @brief Allocates a memory block within a zone.
+ *
+ * This is the main allocation function that first searches for a suitable
+ * free block in existing zones. If no free block is found, it creates a
+ * new zone with the requested block.
+ *
+ * @param zone_list Pointer to the head of the zone list (TINY, SMALL, or LARGE).
+ * @param size The size of memory to allocate (already aligned).
+ * @param zone_size The size of zones to create for this allocation type.
+ *
+ * @return Pointer to the allocated memory, or NULL if allocation fails.
  */
 void *alloc_in_zone(t_zone **zone_list, size_t size, size_t zone_size) {
-    t_zone *zone = *zone_list;
-    void *ret = find_free_block(zone, size);
+    void *ret = find_free_block(*zone_list, size);
 
     if (ret == NULL) {
         ret = create_zone_with_block(zone_list, size, zone_size);
@@ -88,15 +149,18 @@ void *alloc_in_zone(t_zone **zone_list, size_t size, size_t zone_size) {
 }
 
 /**
- * @brief Searches for a given block in a list of zones (TINY or SMALL).
+ * @brief Searches for a specific block in a zone list.
  *
- * Iterates over all blocks in all zones of the given list and returns the matching
- * block pointer if found.
+ * This function is used by free() to verify that a given block pointer
+ * belongs to a specific zone list (TINY, SMALL, or LARGE). It traverses
+ * all zones and their blocks to find a match.
  *
- * @param zone Pointer to the head of a zone list.
- * @param block Pointer to the block being searched.
- * @return Pointer to the matching block if found, NULL otherwise.
+ * @param zone The head of the zone list to search.
+ * @param block The block pointer to search for.
+ *
+ * @return The block pointer if found, NULL otherwise.
  */
+
 t_block *find_block_in_zone(t_zone *zone, t_block *block) {
     if (zone == NULL) {
         return NULL;
@@ -119,13 +183,15 @@ t_block *find_block_in_zone(t_zone *zone, t_block *block) {
 }
 
 /**
- * @brief Finds the zone in the LARGE list that contains a given block.
+ * @brief Finds the zone containing a specific block in the LARGE zone list.
  *
- * Because each LARGE zone contains only one block, the match is done directly
- * between the zone's `blocks` field and the given block pointer.
+ * This function is specifically designed for LARGE allocations where each
+ * zone contains only one block. It's used by free() to locate the zone
+ * that needs to be unmapped when freeing a LARGE allocation.
  *
- * @param zone Head of the LARGE zones list.
- * @param block Pointer to the block to find.
+ * @param zone The head of the LARGE zone list.
+ * @param block The block to search for.
+ *
  * @return Pointer to the zone containing the block, or NULL if not found.
  */
 t_zone *find_zone_in_large_list(t_zone *zone, t_block *block) {

@@ -26,21 +26,22 @@ t_malloc g_malloc = {
  * @return A pointer to the appropriate zone list (tiny, small, or large).
  */
 static t_zone **get_target_zone(size_t size, size_t *zone_size) {
-    if (size <= TINY_THRESHOLD)
-    {
+    size_t aligned_size = align_size(size);
+    
+    if (aligned_size <= TINY_THRESHOLD) {
         *zone_size = TINY_ZONE_SIZE;
         return &g_malloc.tiny;
     }
 
-    if (size <= SMALL_THRESHOLD)
-    {
+    if (aligned_size <= SMALL_THRESHOLD) {
         *zone_size = SMALL_ZONE_SIZE;
         return &g_malloc.small; 
     }
 
-    *zone_size = size + sizeof(t_block);
+    *zone_size = sizeof(t_zone) + sizeof(t_block) + aligned_size;
     return &g_malloc.large;
 }
+
 
 /**
  * @brief Custom implementation of malloc().
@@ -56,7 +57,6 @@ static t_zone **get_target_zone(size_t size, size_t *zone_size) {
  * @return A pointer to the usable memory block, or NULL if allocation fails.
  */
 void *malloc(size_t size) {
-
     if (size == 0) {
         return NULL;
     }
@@ -66,7 +66,7 @@ void *malloc(size_t size) {
     size_t aligned = align_size(size);
     size_t zone_size;
 
-    t_zone **zone_list = get_target_zone(size, &zone_size);
+    t_zone **zone_list = get_target_zone(aligned, &zone_size);
 
     void *ptr = alloc_in_zone(zone_list, aligned, zone_size);
 
