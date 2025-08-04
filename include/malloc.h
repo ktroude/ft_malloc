@@ -11,8 +11,8 @@
 #define TINY_THRESHOLD 128
 #define SMALL_THRESHOLD 2048
 
-#define TINY_ZONE_SIZE  (page_size() * 8)
-#define SMALL_ZONE_SIZE (page_size() * 52)
+#define TINY_ZONE_SIZE  (page_size() * 8)   // page_size = 4096;    4096 * 8 = 32768;      32768/128 = 256
+#define SMALL_ZONE_SIZE (page_size() * 52)  // page_size = 4096;    4096 * 52 = 212992;    212992/2048 = 104
 
 #define ALIGNMENT 16
 
